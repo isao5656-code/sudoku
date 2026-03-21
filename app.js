@@ -1,6 +1,7 @@
 const boardEl = document.getElementById('board');
 const difficultyEl = document.getElementById('difficulty');
 const messageEl = document.getElementById('message');
+const memoButton = document.getElementById('memo');
 const numberPadButtons = [...document.querySelectorAll('.number-pad button')];
 
 const DIGITS = [1, 2, 3, 4, 5, 6, 7, 8, 9];
@@ -12,7 +13,10 @@ const blanksByDifficulty = {
 
 let puzzle = [];
 let solution = [];
+let givens = [];
+let notes = [];
 let selectedIndex = 0;
+let memoMode = false;
 
 function showMessage(text, type = '') {
   messageEl.textContent = text;
@@ -21,6 +25,10 @@ function showMessage(text, type = '') {
 
 function cloneGrid(grid) {
   return grid.map((row) => [...row]);
+}
+
+function createEmptyNotes() {
+  return Array.from({ length: 9 }, () => Array.from({ length: 9 }, () => new Set()));
 }
 
 function shuffle(arr) {
@@ -49,6 +57,7 @@ function isValid(grid, row, col, num) {
       }
     }
   }
+
   return true;
 }
 
@@ -91,6 +100,28 @@ function createPuzzleFromSolution(solved, blanks) {
   return created;
 }
 
+function isGivenCell(row, col) {
+  return givens[row][col];
+}
+
+function clearNotes(row, col) {
+  notes[row][col].clear();
+}
+
+function renderNotes(row, col) {
+  const wrapper = document.createElement('div');
+  wrapper.className = 'cell-notes';
+
+  for (const digit of DIGITS) {
+    const note = document.createElement('span');
+    note.className = 'note';
+    note.textContent = notes[row][col].has(digit) ? String(digit) : '';
+    wrapper.append(note);
+  }
+
+  return wrapper;
+}
+
 function renderBoard() {
   boardEl.innerHTML = '';
 
@@ -105,16 +136,26 @@ function renderBoard() {
       cell.dataset.col = String(col);
       cell.type = 'button';
 
-      const fixed = value !== 0 && value === solution[row][col];
-      if (fixed) {
+      if (isGivenCell(row, col)) {
         cell.classList.add('fixed');
       }
 
       if (idx === selectedIndex) {
         cell.classList.add('selected');
+        if (memoMode) {
+          cell.classList.add('memo-active');
+        }
       }
 
-      cell.textContent = value === 0 ? '' : String(value);
+      if (value === 0) {
+        cell.append(renderNotes(row, col));
+      } else {
+        const valueEl = document.createElement('span');
+        valueEl.className = 'cell-value';
+        valueEl.textContent = String(value);
+        cell.append(valueEl);
+      }
+
       cell.addEventListener('click', () => selectCell(idx));
       boardEl.append(cell);
     }
@@ -124,20 +165,67 @@ function renderBoard() {
 function selectCell(index) {
   selectedIndex = index;
   renderBoard();
+  validateConflicts();
+}
+
+function toggleMemoMode() {
+  memoMode = !memoMode;
+  memoButton.classList.toggle('active', memoMode);
+  memoButton.classList.toggle('memo-button', true);
+  memoButton.setAttribute('aria-pressed', String(memoMode));
+  memoButton.textContent = memoMode ? 'メモ ON' : 'メモ OFF';
+  renderBoard();
+  validateConflicts();
+  showMessage(memoMode ? 'メモ入力モードです。数字で候補を記録できます。' : '通常入力モードに戻りました。');
+}
+
+function toggleNote(number) {
+  const row = Math.floor(selectedIndex / 9);
+  const col = selectedIndex % 9;
+
+  if (isGivenCell(row, col)) {
+    showMessage('固定マスにはメモできません。', 'error');
+    return;
+  }
+
+  if (puzzle[row][col] !== 0) {
+    showMessage('数字が入っているマスは先に消してからメモしてください。', 'error');
+    return;
+  }
+
+  const cellNotes = notes[row][col];
+  if (number === 0) {
+    cellNotes.clear();
+  } else if (cellNotes.has(number)) {
+    cellNotes.delete(number);
+  } else {
+    cellNotes.add(number);
+  }
+
+  renderBoard();
+  validateConflicts();
+  showMessage(number === 0 ? 'メモを消しました。' : `候補 ${number} を${cellNotes.has(number) ? '追加' : '削除'}しました。`);
 }
 
 function setCell(number) {
   const row = Math.floor(selectedIndex / 9);
   const col = selectedIndex % 9;
-  const current = puzzle[row][col];
-  const isFixed = current !== 0 && current === solution[row][col];
 
-  if (isFixed) {
+  if (isGivenCell(row, col)) {
     showMessage('固定マスは変更できません。', 'error');
     return;
   }
 
+  if (memoMode) {
+    toggleNote(number);
+    return;
+  }
+
   puzzle[row][col] = number;
+  if (number !== 0) {
+    clearNotes(row, col);
+  }
+
   renderBoard();
   validateConflicts();
   showMessage('');
@@ -149,11 +237,11 @@ function validateConflicts() {
 
   for (let row = 0; row < 9; row += 1) {
     for (let col = 0; col < 9; col += 1) {
-      const val = puzzle[row][col];
-      if (val === 0) {
+      const value = puzzle[row][col];
+      if (value === 0) {
         continue;
       }
-      if (val !== solution[row][col]) {
+      if (value !== solution[row][col]) {
         const idx = row * 9 + col;
         cells[idx].classList.add('invalid');
       }
@@ -180,6 +268,8 @@ function newGame() {
   const solved = createSolvedGrid();
   solution = solved;
   puzzle = createPuzzleFromSolution(solved, blanksByDifficulty[difficultyEl.value]);
+  givens = puzzle.map((row) => row.map((cell) => cell !== 0));
+  notes = createEmptyNotes();
 
   const firstOpen = puzzle.flat().findIndex((cell) => cell === 0);
   selectedIndex = firstOpen === -1 ? 0 : firstOpen;
@@ -191,7 +281,9 @@ function newGame() {
 
 function solvePuzzle() {
   puzzle = cloneGrid(solution);
+  notes = createEmptyNotes();
   renderBoard();
+  validateConflicts();
   showMessage('自動で解きました。', 'ok');
 }
 
@@ -201,16 +293,25 @@ numberPadButtons.forEach((button) => {
   });
 });
 
+memoButton.classList.add('memo-button');
+memoButton.addEventListener('click', toggleMemoMode);
 document.getElementById('new-game').addEventListener('click', newGame);
 document.getElementById('check').addEventListener('click', checkAnswer);
 document.getElementById('solve').addEventListener('click', solvePuzzle);
 
 document.addEventListener('keydown', (event) => {
+  if (event.target instanceof HTMLSelectElement) {
+    return;
+  }
+
   if (/^[1-9]$/.test(event.key)) {
     setCell(Number(event.key));
   }
   if (event.key === 'Backspace' || event.key === 'Delete' || event.key === '0') {
     setCell(0);
+  }
+  if (event.key === 'm' || event.key === 'M') {
+    toggleMemoMode();
   }
   if (event.key === 'ArrowRight') {
     selectCell((selectedIndex + 1) % 81);
