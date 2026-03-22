@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>スマホ対応 数独アプリ</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main class="app">
+      <header class="header">
+        <div>
+          <h1>数独アプリ</h1>
+          <p>スマホでも遊びやすい、メモ・ヒント・ミス回数付きの数独です</p>
+        </div>
+        <button id="new-game" class="primary-button">新しいゲーム</button>
+      </header>
+
+      <section class="status-panel" aria-label="ゲーム状況">
+        <div class="status-card">
+          <span class="status-label">難易度</span>
+          <label class="difficulty-select">
+            <select id="difficulty">
+              <option value="easy">かんたん</option>
+              <option value="normal" selected>ふつう</option>
+              <option value="hard">むずかしい</option>
+              <option value="expert">エキスパート</option>
+            </select>
+          </label>
+        </div>
+        <div class="status-card">
+          <span class="status-label">タイム</span>
+          <strong id="timer">00:00</strong>
+        </div>
+        <div class="status-card">
+          <span class="status-label">間違い</span>
+          <strong id="mistakes">0/3</strong>
+        </div>
+        <div class="status-card">
+          <span class="status-label">ヒント</span>
+          <strong id="hints-used">0回</strong>
+        </div>
+      </section>
+
+      <p id="message" class="message" aria-live="polite"></p>
+
+      <section class="action-row" aria-label="補助機能">
+        <button id="undo" type="button">元に戻す</button>
+        <button id="notes-toggle" type="button" aria-pressed="false">メモ OFF</button>
+        <button id="hint" type="button">ヒント</button>
+        <button id="check" type="button">答え合わせ</button>
+        <button id="solve" type="button">自動で解く</button>
+      </section>
+
+      <section class="board-wrap">
+        <div id="board" class="board" role="grid" aria-label="数独ボード"></div>
+      </section>
+
+      <section class="number-pad" aria-label="数字入力">
+        <button data-number="1">1</button>
+        <button data-number="2">2</button>
+        <button data-number="3">3</button>
+        <button data-number="4">4</button>
+        <button data-number="5">5</button>
+        <button data-number="6">6</button>
+        <button data-number="7">7</button>
+        <button data-number="8">8</button>
+        <button data-number="9">9</button>
+        <button data-number="0" class="clear">消す</button>
+      </section>
+    </main>
+
+    <script src="app.js"></script>
+  </body>
+</html>
